@@ -8,11 +8,13 @@ import 'count_comparison_widget.dart';
 class StockTakeItemCard extends StatelessWidget {
   final StockItemModel item;
   final ValueChanged<int> onActualQtyChanged;
+  final bool readOnly;
 
   const StockTakeItemCard({
     super.key,
     required this.item,
     required this.onActualQtyChanged,
+    this.readOnly = false,
   });
 
   bool get hasDiscrepancy =>
@@ -37,21 +39,46 @@ class StockTakeItemCard extends StatelessWidget {
             _buildDiscrepancyAlert(),
           ],
           const SizedBox(height: 12),
-          AppTextField(
-            label: 'Enter Actual Count',
-            hint: 'Enter counted quantity...',
-            isRequired: true,
-            keyboardType: TextInputType.number,
-            suffixIcon: const Icon(
-              Icons.calculate_outlined,
-              color: AppColors.textMedium,
-              size: 20,
+          if (readOnly)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  const Text(
+                    'Actual count: ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMedium,
+                    ),
+                  ),
+                  Text(
+                    '${item.actualQty}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textHigh,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            AppTextField(
+              label: 'Enter Actual Count',
+              hint: 'Enter counted quantity...',
+              isRequired: true,
+              keyboardType: TextInputType.number,
+              suffixIcon: const Icon(
+                Icons.calculate_outlined,
+                color: AppColors.textMedium,
+                size: 20,
+              ),
+              onChanged: (val) {
+                final qty = int.tryParse(val);
+                if (qty != null) onActualQtyChanged(qty);
+              },
             ),
-            onChanged: (val) {
-              final qty = int.tryParse(val);
-              if (qty != null) onActualQtyChanged(qty);
-            },
-          ),
         ],
       ),
     );

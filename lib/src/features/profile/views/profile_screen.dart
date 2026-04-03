@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/utils/app_colors.dart';
 import '../../../core/utils/app_text_styles.dart';
-import '../../../core/routes/app_router.dart';
+import '../../../core/utils/current_user.dart';
 import '../../../components/app_card.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_event.dart';
@@ -33,8 +33,6 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _buildInfoCard(),
             const SizedBox(height: 16),
-            _buildStatsCard(),
-            const SizedBox(height: 16),
             _buildMenuItems(context),
           ],
         ),
@@ -43,15 +41,16 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildProfileHeader() {
+    final user = CurrentUser.instance;
     return AppCard(
       child: Row(
         children: [
           CircleAvatar(
             radius: 32,
             backgroundColor: AppColors.primaryLight,
-            child: const Text(
-              'AR',
-              style: TextStyle(
+            child: Text(
+              user.initials,
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -59,30 +58,30 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ahmed Raza',
-                  style: TextStyle(
+                  user.fullName,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textHigh,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Field Operations Agent',
-                  style: TextStyle(
+                  user.userType,
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textMedium,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'ahmed.raza@lucrum.com',
-                  style: TextStyle(
+                  user.email,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.primary,
                   ),
@@ -96,6 +95,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildInfoCard() {
+    final user = CurrentUser.instance;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,10 +110,10 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _infoRow('Employee ID', 'EMP-2026-0042'),
-          _infoRow('Region', 'Lahore Zone A'),
-          _infoRow('Joined', 'January 2026'),
-          _infoRow('Status', 'Active'),
+          _infoRow('Employee ID', user.employeeId),
+          _infoRow('Phone', user.phone ?? '—'),
+          _infoRow('Mobile', user.mobileNo ?? '—'),
+          _infoRow('Gender', user.gender ?? '—'),
         ],
       ),
     );
@@ -142,53 +142,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsCard() {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'THIS MONTH',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textMedium,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _statItem('48', 'Tasks Done')),
-              Expanded(child: _statItem('12', 'Routes')),
-              Expanded(child: _statItem('98%', 'Accuracy')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: AppColors.textMedium),
-        ),
-      ],
-    );
-  }
-
   Widget _buildMenuItems(BuildContext context) {
     return AppCard(
       padding: EdgeInsets.zero,
@@ -203,11 +156,6 @@ class ProfileScreen extends StatelessWidget {
             'Logout',
             () {
               context.read<AuthBloc>().add(LogoutRequested());
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.login,
-                (_) => false,
-              );
             },
             isDestructive: true,
           ),

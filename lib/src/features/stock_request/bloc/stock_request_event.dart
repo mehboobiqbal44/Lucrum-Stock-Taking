@@ -8,11 +8,11 @@ abstract class StockRequestEvent extends Equatable {
 }
 
 class LoadWarehouseItems extends StockRequestEvent {
-  final String stopId;
-  const LoadWarehouseItems(this.stopId);
+  final String targetWarehouse;
+  const LoadWarehouseItems(this.targetWarehouse);
 
   @override
-  List<Object?> get props => [stopId];
+  List<Object?> get props => [targetWarehouse];
 }
 
 class UpdateItemQty extends StockRequestEvent {
@@ -35,7 +35,20 @@ class AddItemToRequest extends StockRequestEvent {
 
 class ToggleUrgent extends StockRequestEvent {}
 
-class SubmitStockRequest extends StockRequestEvent {}
+class SubmitStockRequest extends StockRequestEvent {
+  final String sourceWarehouse;
+  final String targetWarehouse;
+  final String customTask;
+
+  const SubmitStockRequest({
+    required this.sourceWarehouse,
+    required this.targetWarehouse,
+    required this.customTask,
+  });
+
+  @override
+  List<Object?> get props => [sourceWarehouse, targetWarehouse, customTask];
+}
 
 class SearchItems extends StockRequestEvent {
   final String query;

@@ -6,13 +6,11 @@ class RoutesService {
 
   RoutesService(this._dioClient);
 
-  Future<List<Map<String, dynamic>>> fetchRoutes() async {
-    final response = await _dioClient.get(ApiEndpoints.routes);
-    return List<Map<String, dynamic>>.from(response.data['data']);
-  }
-
-  Future<Map<String, dynamic>> fetchRouteDetail(String routeId) async {
-    final response = await _dioClient.get('${ApiEndpoints.routes}/$routeId');
+  Future<Map<String, dynamic>> fetchTaskDetails(String employeeId) async {
+    final response = await _dioClient.post(
+      ApiEndpoints.getTaskDetails,
+      data: {'employee_id': employeeId},
+    );
     return response.data as Map<String, dynamic>;
   }
 }

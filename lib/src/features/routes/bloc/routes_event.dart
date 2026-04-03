@@ -6,12 +6,10 @@ abstract class RoutesEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadRoutes extends RoutesEvent {}
-
-class SelectStop extends RoutesEvent {
-  final String stopId;
-  const SelectStop(this.stopId);
+class LoadRoutes extends RoutesEvent {
+  final String employeeId;
+  const LoadRoutes({required this.employeeId});
 
   @override
-  List<Object?> get props => [stopId];
+  List<Object?> get props => [employeeId];
 }

@@ -1,16 +1,26 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  static const baseUrl = 'https://api.example.com/api/v1';
+  static const loginBaseUrl =
+      'https://old-sourcespot.lucrumerp.com/api/method/lucrum_stock_take_app.api.';
 
-  static const login = '/auth/login';
-  static const logout = '/auth/logout';
+  static const baseUrl =
+      'https://old-sourcespot.lucrumerp.com/api/method/lucrum_stock_take_app.api.app_api.';
 
-  static const routes = '/routes';
-  static const tasks = '/tasks';
-  static const checkin = '/checkin';
+  // Auth
+  static const login = 'auth.login_and_generate_keys';
 
-  static const stockItems = '/stock/items';
-  static const stockRequest = '/stock/request';
-  static const stockTake = '/stock/take';
+  // Tasks
+  static const getTaskDetails = 'get_task_details';
+
+  // Check-in
+  static const checkin = 'checkin.perform_checkin';
+
+  // Stock Request
+  static const getMaterialTransferItems = 'get_material_transfer_items';
+  static const getAllItems = 'get_all_items';
+  static const createStockRequest = 'create_stock_request';
+
+  // Stock Take
+  static const createStockTake = 'create_stock_take';
 }

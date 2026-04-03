@@ -12,6 +12,8 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
   final int maxLines;
+  final String? errorText;
+  final bool readOnly;
 
   const AppTextField({
     super.key,
@@ -25,6 +27,8 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.onChanged,
     this.maxLines = 1,
+    this.errorText,
+    this.readOnly = false,
   });
 
   @override
@@ -59,11 +63,13 @@ class AppTextField extends StatelessWidget {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          onChanged: onChanged,
+          onChanged: readOnly ? null : onChanged,
           maxLines: maxLines,
-          style: const TextStyle(
+          readOnly: readOnly,
+          style: TextStyle(
             fontSize: 14,
             color: AppColors.textHigh,
+            decoration: readOnly ? TextDecoration.none : null,
           ),
           decoration: InputDecoration(
             hintText: hint,
@@ -73,6 +79,8 @@ class AppTextField extends StatelessWidget {
             ),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
+            errorText: errorText,
+            errorMaxLines: 2,
             filled: true,
             fillColor: AppColors.surface,
             contentPadding: const EdgeInsets.symmetric(
@@ -93,6 +101,14 @@ class AppTextField extends StatelessWidget {
                 color: AppColors.primary,
                 width: 1.5,
               ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.errorText),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.errorText, width: 1.5),
             ),
           ),
         ),

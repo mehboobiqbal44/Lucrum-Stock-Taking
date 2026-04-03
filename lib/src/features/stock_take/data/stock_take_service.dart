@@ -6,23 +6,29 @@ class StockTakeService {
 
   StockTakeService(this._dioClient);
 
-  Future<List<Map<String, dynamic>>> fetchInventoryItems(
-    String stopId,
+  Future<Map<String, dynamic>> fetchInventoryItems(
+    String targetWarehouse,
   ) async {
-    final response = await _dioClient.get(
-      ApiEndpoints.stockTake,
-      queryParams: {'stop_id': stopId},
+    final response = await _dioClient.post(
+      ApiEndpoints.getMaterialTransferItems,
+      data: {'to_warehouse': targetWarehouse},
     );
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<void> submitCount({
-    required String stopId,
+  Future<Map<String, dynamic>> submitStockTake({
+    required String sourceWarehouse,
+    required String customTask,
     required List<Map<String, dynamic>> items,
   }) async {
-    await _dioClient.post(
-      ApiEndpoints.stockTake,
-      data: {'stop_id': stopId, 'items': items},
+    final response = await _dioClient.post(
+      ApiEndpoints.createStockTake,
+      data: {
+        'source_warehouse': sourceWarehouse,
+        'custom_task': customTask,
+        'items': items,
+      },
     );
+    return response.data as Map<String, dynamic>;
   }
 }

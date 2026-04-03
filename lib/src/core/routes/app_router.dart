@@ -26,13 +26,13 @@ class AppRouter {
         final stop = settings.arguments as RouteStopModel;
         return _buildRoute(CheckinScreen(stop: stop));
       case stockRequest:
-        final stopId = settings.arguments as String;
-        return _buildRoute(StockRequestScreen(stopId: stopId));
+        final stop = settings.arguments as RouteStopModel;
+        return _buildRoute(StockRequestScreen(stop: stop));
       case addItem:
         return _buildRoute(const AddItemScreen());
       case stockTake:
-        final stopId = settings.arguments as String;
-        return _buildRoute(StockTakeScreen(stopId: stopId));
+        final stop = settings.arguments as RouteStopModel;
+        return _buildRoute(StockTakeScreen(stop: stop));
       default:
         return _buildRoute(const LoginScreen());
     }

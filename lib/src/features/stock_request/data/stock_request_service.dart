@@ -6,33 +6,36 @@ class StockRequestService {
 
   StockRequestService(this._dioClient);
 
-  Future<List<Map<String, dynamic>>> fetchWarehouseItems(
-    String stopId,
+  Future<Map<String, dynamic>> fetchWarehouseItems(
+    String targetWarehouse,
   ) async {
-    final response = await _dioClient.get(
-      ApiEndpoints.stockItems,
-      queryParams: {'stop_id': stopId},
+    final response = await _dioClient.post(
+      ApiEndpoints.getMaterialTransferItems,
+      data: {'to_warehouse': targetWarehouse},
     );
-    return List<Map<String, dynamic>>.from(response.data['data']);
+    return response.data as Map<String, dynamic>;
   }
 
-  Future<List<Map<String, dynamic>>> fetchAllItems() async {
-    final response = await _dioClient.get(ApiEndpoints.stockItems);
-    return List<Map<String, dynamic>>.from(response.data['data']);
+  Future<List<dynamic>> fetchAllItems() async {
+    final response = await _dioClient.post(ApiEndpoints.getAllItems);
+    return response.data['message'] as List<dynamic>;
   }
 
-  Future<void> submitRequest({
-    required String stopId,
+  Future<Map<String, dynamic>> submitRequest({
+    required String sourceWarehouse,
+    required String targetWarehouse,
+    required String customTask,
     required List<Map<String, dynamic>> items,
-    required bool isUrgent,
   }) async {
-    await _dioClient.post(
-      ApiEndpoints.stockRequest,
+    final response = await _dioClient.post(
+      ApiEndpoints.createStockRequest,
       data: {
-        'stop_id': stopId,
+        'source_warehouse': sourceWarehouse,
+        'target_warehouse': targetWarehouse,
+        'custom_task': customTask,
         'items': items,
-        'is_urgent': isUrgent,
       },
     );
+    return response.data as Map<String, dynamic>;
   }
 }

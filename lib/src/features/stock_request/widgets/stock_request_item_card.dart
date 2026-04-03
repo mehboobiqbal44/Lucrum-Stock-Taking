@@ -6,11 +6,13 @@ import '../../../core/models/stock_item_model.dart';
 class StockRequestItemCard extends StatelessWidget {
   final StockItemModel item;
   final ValueChanged<int> onQtyChanged;
+  final bool readOnly;
 
   const StockRequestItemCard({
     super.key,
     required this.item,
     required this.onQtyChanged,
+    this.readOnly = false,
   });
 
   @override
@@ -50,6 +52,7 @@ class StockRequestItemCard extends StatelessWidget {
           _QtyInputControl(
             value: item.requestedQty,
             onChanged: onQtyChanged,
+            readOnly: readOnly,
           ),
         ],
       ),
@@ -60,10 +63,12 @@ class StockRequestItemCard extends StatelessWidget {
 class _QtyInputControl extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
+  final bool readOnly;
 
   const _QtyInputControl({
     required this.value,
     required this.onChanged,
+    this.readOnly = false,
   });
 
   @override
@@ -102,55 +107,64 @@ class _QtyInputControlState extends State<_QtyInputControl> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(8),
-        color: AppColors.surface,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildCircleButton(
-            icon: Icons.remove,
-            onTap: () => widget.onChanged(widget.value > 0 ? widget.value - 1 : 0),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 50,
-            child: TextField(
-              controller: _controller,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textHigh,
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onSubmitted: _applyTypedValue,
-              onChanged: _applyTypedValue,
+    final ro = widget.readOnly;
+    return Opacity(
+      opacity: ro ? 0.55 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.surface,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildCircleButton(
+              icon: Icons.remove,
+              onTap: ro
+                  ? null
+                  : () => widget.onChanged(
+                        widget.value > 0 ? widget.value - 1 : 0,
+                      ),
             ),
-          ),
-          const SizedBox(width: 8),
-          _buildCircleButton(
-            icon: Icons.add,
-            onTap: () => widget.onChanged(widget.value + 1),
-          ),
-        ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 50,
+              child: TextField(
+                controller: _controller,
+                readOnly: ro,
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textHigh,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onSubmitted: ro ? null : _applyTypedValue,
+                onChanged: ro ? null : _applyTypedValue,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildCircleButton(
+              icon: Icons.add,
+              onTap: ro ? null : () => widget.onChanged(widget.value + 1),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCircleButton({
     required IconData icon,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -161,7 +175,11 @@ class _QtyInputControlState extends State<_QtyInputControl> {
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.primary),
         ),
-        child: Icon(icon, size: 16, color: AppColors.primary),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap == null ? AppColors.textLow : AppColors.primary,
+        ),
       ),
     );
   }

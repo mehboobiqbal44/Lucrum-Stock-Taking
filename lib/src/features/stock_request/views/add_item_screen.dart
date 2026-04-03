@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/utils/app_colors.dart';
 import '../../../core/utils/app_text_styles.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/models/stock_item_model.dart';
 import '../../../components/app_text_field.dart';
+import '../data/stock_request_service.dart';
+import '../data/stock_request_repository.dart';
 
 class AddItemScreen extends StatefulWidget {
   const AddItemScreen({super.key});
@@ -15,6 +19,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   List<StockItemModel> _allItems = [];
   List<StockItemModel> _filtered = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,13 +28,28 @@ class _AddItemScreenState extends State<AddItemScreen> {
   }
 
   Future<void> _loadItems() async {
-    // TODO: Replace with actual API call
-    await Future.delayed(const Duration(milliseconds: 500));
     setState(() {
-      _allItems = _mockAllItems;
-      _filtered = _allItems;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+
+    try {
+      final dio = context.read<DioClient>();
+      final repo = StockRequestRepository(StockRequestService(dio));
+      final items = await repo.getAllItems();
+      if (!mounted) return;
+      setState(() {
+        _allItems = items;
+        _filtered = items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
   }
 
   void _search(String query) {
@@ -79,31 +99,69 @@ class _AddItemScreenState extends State<AddItemScreen> {
               onChanged: _search,
             ),
           ),
-          Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )
-                : _filtered.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No items found',
-                          style: AppTextStyles.caption,
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final item = _filtered[index];
-                          return _buildItemTile(item);
-                        },
-                      ),
-          ),
+          Expanded(child: _buildBody()),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppColors.primary),
+            SizedBox(height: 12),
+            Text('Loading items...', style: AppTextStyles.caption),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline,
+                  size: 48, color: AppColors.errorText),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 13, color: AppColors.textMedium),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _loadItems,
+                icon: const Icon(Icons.refresh,
+                    size: 18, color: AppColors.primary),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_filtered.isEmpty) {
+      return const Center(
+        child: Text('No items found', style: AppTextStyles.caption),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _filtered.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final item = _filtered[index];
+        return _buildItemTile(item);
+      },
     );
   }
 
@@ -131,7 +189,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'SKU: ${item.sku} · ${item.availableQty} ${item.unit} available',
+                  item.sku,
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textMedium,
@@ -143,7 +201,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
           GestureDetector(
             onTap: () => Navigator.pop(context, item),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(8),
@@ -162,71 +221,4 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ),
     );
   }
-
-  static final _mockAllItems = [
-    const StockItemModel(
-      id: '10',
-      name: 'Badminton Racket Pro',
-      sku: 'BR-PRO-101',
-      availableQty: 25,
-      systemQty: 25,
-      unit: 'pcs',
-    ),
-    const StockItemModel(
-      id: '11',
-      name: 'Swimming Goggles - Anti Fog',
-      sku: 'SG-AF-201',
-      availableQty: 60,
-      systemQty: 60,
-      unit: 'pcs',
-    ),
-    const StockItemModel(
-      id: '12',
-      name: 'Basketball (Size 7)',
-      sku: 'BB-S7-301',
-      availableQty: 40,
-      systemQty: 40,
-      unit: 'pcs',
-    ),
-    const StockItemModel(
-      id: '13',
-      name: 'Table Tennis Set',
-      sku: 'TT-SET-401',
-      availableQty: 15,
-      systemQty: 15,
-      unit: 'sets',
-    ),
-    const StockItemModel(
-      id: '14',
-      name: 'Hockey Stick - Field',
-      sku: 'HS-FLD-501',
-      availableQty: 30,
-      systemQty: 30,
-      unit: 'pcs',
-    ),
-    const StockItemModel(
-      id: '15',
-      name: 'Yoga Mat - Premium',
-      sku: 'YM-PRM-601',
-      availableQty: 50,
-      systemQty: 50,
-      unit: 'pcs',
-    ),
-    const StockItemModel(
-      id: '16',
-      name: 'Boxing Gloves - 12oz',
-      sku: 'BG-12-701',
-      availableQty: 20,
-      systemQty: 20,
-      unit: 'pairs',
-    ),
-    const StockItemModel(
-      id: '17',
-      name: 'Jump Rope - Speed',
-      sku: 'JR-SPD-801',
-      availableQty: 80,
-      systemQty: 80,
-      unit: 'pcs',
-    ),
-  ];
 }

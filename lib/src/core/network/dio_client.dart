@@ -22,8 +22,9 @@ class DioClient {
     );
   }
 
+  /// Sets the Frappe-style `token api_key:api_secret` auth header.
   void setAuthToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
+    _dio.options.headers['Authorization'] = 'token $token';
   }
 
   void clearAuthToken() {

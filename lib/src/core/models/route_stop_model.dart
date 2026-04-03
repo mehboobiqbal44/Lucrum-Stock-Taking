@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'task_model.dart';
 
 enum StopStatus { completed, active, pending }
 
@@ -13,6 +14,10 @@ class RouteStopModel extends Equatable {
   final int taskCount;
   final String? completedTime;
   final String? eta;
+  final String? subject;
+  final String? sourceWarehouse;
+  final String? targetWarehouse;
+  final List<TaskChildModel> taskChildren;
 
   const RouteStopModel({
     required this.id,
@@ -25,38 +30,80 @@ class RouteStopModel extends Equatable {
     this.taskCount = 0,
     this.completedTime,
     this.eta,
+    this.subject,
+    this.sourceWarehouse,
+    this.targetWarehouse,
+    this.taskChildren = const [],
   });
 
-  factory RouteStopModel.fromJson(Map<String, dynamic> json) {
+  factory RouteStopModel.fromTaskModel(TaskModel task, StopStatus status) {
     return RouteStopModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      address: json['address'] as String,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
-      status: StopStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-        orElse: () => StopStatus.pending,
-      ),
-      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
-      taskCount: json['task_count'] as int? ?? 0,
-      completedTime: json['completed_time'] as String?,
-      eta: json['eta'] as String?,
+      id: task.name,
+      name: task.location.isNotEmpty ? task.location : task.sourceWarehouse,
+      address: task.sourceWarehouse,
+      latitude: task.latitude,
+      longitude: task.longitude,
+      status: status,
+      taskCount: task.taskChildren.length,
+      subject: task.subject,
+      sourceWarehouse: task.sourceWarehouse,
+      targetWarehouse: task.targetWarehouse,
+      taskChildren: task.taskChildren,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'address': address,
-    'latitude': latitude,
-    'longitude': longitude,
-    'status': status.name,
-    'distance_km': distanceKm,
-    'task_count': taskCount,
-    'completed_time': completedTime,
-    'eta': eta,
-  };
+  /// Builds ordered stops with [StopStatus] from API child task statuses.
+  static List<RouteStopModel> fromTaskList(List<TaskModel> tasks) {
+    final statuses = _computeStatuses(tasks);
+    return List.generate(
+      tasks.length,
+      (i) => RouteStopModel.fromTaskModel(tasks[i], statuses[i]),
+    );
+  }
+
+  static List<StopStatus> _computeStatuses(List<TaskModel> tasks) {
+    if (tasks.isEmpty) return [];
+
+    final out = List<StopStatus>.generate(
+      tasks.length,
+      (_) => StopStatus.pending,
+    );
+
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].isFullyCompleted) {
+        out[i] = StopStatus.completed;
+      }
+    }
+
+    final firstIncomplete = out.indexWhere((s) => s != StopStatus.completed);
+    if (firstIncomplete >= 0) {
+      out[firstIncomplete] = StopStatus.active;
+    }
+
+    return out;
+  }
+
+  bool get isFullyCompleted =>
+      taskChildren.isNotEmpty && taskChildren.every((c) => c.isCompleted);
+
+  bool get isNotStarted =>
+      taskChildren.isEmpty ||
+      taskChildren.every((c) => c.isPending);
+
+  bool get isInProgress {
+    if (taskChildren.isEmpty) return false;
+    final anyDone = taskChildren.any((c) => c.isCompleted);
+    return anyDone && !isFullyCompleted;
+  }
+
+  bool get hasStockRequest => taskChildren.any((c) => c.isStockRequest);
+  bool get hasStockTake => taskChildren.any((c) => c.isStockTake);
+
+  bool get isStockRequestCompleted =>
+      taskChildren.any((c) => c.isStockRequest && c.isCompleted);
+
+  bool get isStockTakeCompleted =>
+      taskChildren.any((c) => c.isStockTake && c.isCompleted);
 
   @override
   List<Object?> get props => [id, name, address, latitude, longitude, status];

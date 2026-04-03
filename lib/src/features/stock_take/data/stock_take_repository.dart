@@ -6,27 +6,35 @@ class StockTakeRepository {
 
   StockTakeRepository(this._service);
 
-  Future<List<StockItemModel>> getInventoryItems(String stopId) async {
-    try {
-      final data = await _service.fetchInventoryItems(stopId);
-      return data.map((e) => StockItemModel.fromJson(e)).toList();
-    } catch (_) {
-      return [];
-    }
+  Future<List<StockItemModel>> getInventoryItems(
+    String targetWarehouse,
+  ) async {
+    final data = await _service.fetchInventoryItems(targetWarehouse);
+    final message = data['message'] as Map<String, dynamic>;
+    final items = message['items'] as List<dynamic>? ?? [];
+    return items
+        .map((e) =>
+            StockItemModel.fromTransferItem(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<bool> submitCount({
-    required String stopId,
+  Future<void> submitStockTake({
+    required String sourceWarehouse,
+    required String customTask,
     required List<StockItemModel> items,
   }) async {
-    try {
-      await _service.submitCount(
-        stopId: stopId,
-        items: items.map((e) => e.toJson()).toList(),
-      );
-      return true;
-    } catch (_) {
-      return false;
-    }
+    final payload = items
+        .where((i) => i.actualQty > 0)
+        .map((i) => {
+              'item_code': i.sku,
+              'physical_qty': i.actualQty,
+            })
+        .toList();
+
+    await _service.submitStockTake(
+      sourceWarehouse: sourceWarehouse,
+      customTask: customTask,
+      items: payload,
+    );
   }
 }

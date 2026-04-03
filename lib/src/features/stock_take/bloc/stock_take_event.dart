@@ -7,11 +7,11 @@ abstract class StockTakeEvent extends Equatable {
 }
 
 class LoadInventoryItems extends StockTakeEvent {
-  final String stopId;
-  const LoadInventoryItems(this.stopId);
+  final String targetWarehouse;
+  const LoadInventoryItems(this.targetWarehouse);
 
   @override
-  List<Object?> get props => [stopId];
+  List<Object?> get props => [targetWarehouse];
 }
 
 class UpdateActualQty extends StockTakeEvent {
@@ -24,4 +24,15 @@ class UpdateActualQty extends StockTakeEvent {
   List<Object?> get props => [itemId, quantity];
 }
 
-class SubmitStockTake extends StockTakeEvent {}
+class SubmitStockTake extends StockTakeEvent {
+  final String sourceWarehouse;
+  final String customTask;
+
+  const SubmitStockTake({
+    required this.sourceWarehouse,
+    required this.customTask,
+  });
+
+  @override
+  List<Object?> get props => [sourceWarehouse, customTask];
+}

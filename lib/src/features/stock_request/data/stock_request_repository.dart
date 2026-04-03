@@ -6,38 +6,45 @@ class StockRequestRepository {
 
   StockRequestRepository(this._service);
 
-  Future<List<StockItemModel>> getWarehouseItems(String stopId) async {
-    try {
-      final data = await _service.fetchWarehouseItems(stopId);
-      return data.map((e) => StockItemModel.fromJson(e)).toList();
-    } catch (_) {
-      return [];
-    }
+  Future<List<StockItemModel>> getWarehouseItems(
+    String targetWarehouse,
+  ) async {
+    final data = await _service.fetchWarehouseItems(targetWarehouse);
+    final message = data['message'] as Map<String, dynamic>;
+    final items = message['items'] as List<dynamic>? ?? [];
+    return items
+        .map((e) =>
+            StockItemModel.fromTransferItem(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<StockItemModel>> getAllItems() async {
-    try {
-      final data = await _service.fetchAllItems();
-      return data.map((e) => StockItemModel.fromJson(e)).toList();
-    } catch (_) {
-      return [];
-    }
+    final data = await _service.fetchAllItems();
+    return data
+        .map((e) =>
+            StockItemModel.fromCatalogItem(e as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<bool> submitRequest({
-    required String stopId,
+  Future<void> submitRequest({
+    required String sourceWarehouse,
+    required String targetWarehouse,
+    required String customTask,
     required List<StockItemModel> items,
-    required bool isUrgent,
   }) async {
-    try {
-      await _service.submitRequest(
-        stopId: stopId,
-        items: items.map((e) => e.toJson()).toList(),
-        isUrgent: isUrgent,
-      );
-      return true;
-    } catch (_) {
-      return false;
-    }
+    final payload = items
+        .where((i) => i.requestedQty > 0)
+        .map((i) => {
+              'item_code': i.sku,
+              'qty': i.requestedQty,
+            })
+        .toList();
+
+    await _service.submitRequest(
+      sourceWarehouse: sourceWarehouse,
+      targetWarehouse: targetWarehouse,
+      customTask: customTask,
+      items: payload,
+    );
   }
 }

@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/app_colors.dart';
+import '../../../core/utils/current_user.dart';
 import '../../dashboard/views/dashboard_screen.dart';
+import '../../routes/bloc/routes_bloc.dart';
+import '../../routes/bloc/routes_event.dart';
+import '../../routes/data/routes_repository.dart';
+import '../../routes/data/routes_service.dart';
 import '../../routes/views/routes_screen.dart';
 import '../../profile/views/profile_screen.dart';
 import '../cubit/navigation_cubit.dart';
@@ -11,8 +17,22 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => NavigationCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<RoutesBloc>(
+          create: (context) {
+            final dio = context.read<DioClient>();
+            final repo = RoutesRepository(RoutesService(dio));
+            return RoutesBloc(repository: repo)
+              ..add(
+                LoadRoutes(employeeId: CurrentUser.instance.employeeId),
+              );
+          },
+        ),
+        BlocProvider<NavigationCubit>(
+          create: (_) => NavigationCubit(),
+        ),
+      ],
       child: const _MainShellView(),
     );
   }

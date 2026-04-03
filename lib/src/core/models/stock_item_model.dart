@@ -43,18 +43,42 @@ class StockItemModel extends Equatable {
     );
   }
 
+  /// Parse from get_material_transfer_items response item.
+  /// {item_code, item_name, actual_qty}
+  factory StockItemModel.fromTransferItem(Map<String, dynamic> json) {
+    final code = json['item_code'] as String? ?? '';
+    return StockItemModel(
+      id: code,
+      name: json['item_name'] as String? ?? '',
+      sku: code,
+      availableQty: (json['actual_qty'] as num?)?.toInt() ?? 0,
+      systemQty: (json['actual_qty'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// Parse from get_all_items response item.
+  /// {item_code, item_name}
+  factory StockItemModel.fromCatalogItem(Map<String, dynamic> json) {
+    final code = json['item_code'] as String? ?? '';
+    return StockItemModel(
+      id: code,
+      name: json['item_name'] as String? ?? '',
+      sku: code,
+    );
+  }
+
   factory StockItemModel.fromJson(Map<String, dynamic> json) {
     return StockItemModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      sku: json['sku'] as String,
-      availableQty: json['available_qty'] as int? ?? 0,
-      systemQty: json['system_qty'] as int? ?? 0,
-      requestedQty: json['requested_qty'] as int? ?? 0,
-      actualQty: json['actual_qty'] as int? ?? 0,
+      id: json['id'] as String? ?? json['item_code'] as String? ?? '',
+      name: json['name'] as String? ?? json['item_name'] as String? ?? '',
+      sku: json['sku'] as String? ?? json['item_code'] as String? ?? '',
+      availableQty: (json['available_qty'] as num?)?.toInt() ?? 0,
+      systemQty: (json['system_qty'] as num?)?.toInt() ?? 0,
+      requestedQty: (json['requested_qty'] as num?)?.toInt() ?? 0,
+      actualQty: (json['actual_qty'] as num?)?.toInt() ?? 0,
       unit: json['unit'] as String? ?? 'pcs',
-      reorderLevel: json['reorder_level'] as int?,
-      dailyUsage: json['daily_usage'] as int?,
+      reorderLevel: (json['reorder_level'] as num?)?.toInt(),
+      dailyUsage: (json['daily_usage'] as num?)?.toInt(),
     );
   }
 

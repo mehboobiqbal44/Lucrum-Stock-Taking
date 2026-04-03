@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucrum_stock_taking/src/core/utils/app_images.dart';
 import '../../../core/utils/app_colors.dart';
-import '../../../core/routes/app_router.dart';
 import '../../../components/app_button.dart';
 import '../../../components/app_text_field.dart';
 import '../bloc/auth_bloc.dart';
@@ -20,6 +19,43 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String? _emailError;
+  String? _passwordError;
+
+  static final _emailPattern = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
+
+  bool _validateAndSubmit(BuildContext context) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+
+      if (email.isEmpty) {
+        _emailError = 'Email is required';
+      } else if (!_emailPattern.hasMatch(email)) {
+        _emailError = 'Enter a valid email address';
+      }
+
+      if (password.isEmpty) {
+        _passwordError = 'Password is required';
+      } else if (password.length < 6) {
+        _passwordError = 'Password must be at least 6 characters';
+      }
+    });
+
+    if (_emailError != null || _passwordError != null) {
+      return false;
+    }
+
+    context.read<AuthBloc>().add(
+          LoginRequested(email: email, password: password),
+        );
+    return true;
+  }
 
   @override
   void dispose() {
@@ -34,9 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.surface,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthAuthenticated) {
-            Navigator.pushReplacementNamed(context, AppRouter.routes);
-          } else if (state is AuthError) {
+          if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.message)),
             );
@@ -69,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // ),
                   const SizedBox(height: 40),
                   const Text(
-                    'v1.0.0 · LucrumX Stock Taking',
+                    'v1.0.0 · LucrumX Stock Management',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textLow,
@@ -87,13 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLogo() {
     return Column(
       children: [
-        Container(
+        SizedBox(
           width: 72,
           height: 72,
-          // decoration: BoxDecoration(
-          //   color: AppColors.primary,
-          //   borderRadius: BorderRadius.circular(18),
-          // ),
           child: Image.asset(AppImages.logo),
         ),
         const SizedBox(height: 20),
@@ -126,6 +156,12 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           isRequired: true,
+          errorText: _emailError,
+          onChanged: (_) {
+            if (_emailError != null) {
+              setState(() => _emailError = null);
+            }
+          },
         ),
         const SizedBox(height: 16),
         AppTextField(
@@ -134,6 +170,12 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _passwordController,
           obscureText: _obscurePassword,
           isRequired: true,
+          errorText: _passwordError,
+          onChanged: (_) {
+            if (_passwordError != null) {
+              setState(() => _passwordError = null);
+            }
+          },
           suffixIcon: IconButton(
             icon: Icon(
               _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -155,14 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return AppButton(
           text: 'Sign In',
           isLoading: state is AuthLoading,
-          onPressed: () {
-            context.read<AuthBloc>().add(
-              LoginRequested(
-                email: _emailController.text,
-                password: _passwordController.text,
-              ),
-            );
-          },
+          onPressed: () => _validateAndSubmit(context),
         );
       },
     );

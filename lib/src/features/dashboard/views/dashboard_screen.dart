@@ -1,14 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../core/utils/app_colors.dart';
 import '../../../core/utils/app_text_styles.dart';
+import '../../../core/utils/current_user.dart';
+import '../../../core/utils/distance_utils.dart';
+import '../../../core/utils/location_helper.dart';
+import '../../../core/models/route_stop_model.dart';
 import '../../../components/app_card.dart';
 import '../../../components/progress_bar_widget.dart';
 import '../../../components/badge_widget.dart';
 import '../../main_shell/cubit/navigation_cubit.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../routes/bloc/routes_bloc.dart';
+import '../../routes/bloc/routes_event.dart';
+import '../../routes/bloc/routes_state.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  LatLng? _userPos;
+  bool _locLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    setState(() => _locLoading = true);
+    final pos = await LocationHelper.getCurrentLatLng();
+    if (!mounted) return;
+    setState(() {
+      _userPos = pos;
+      _locLoading = false;
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    final bloc = context.read<RoutesBloc>();
+    bloc.add(LoadRoutes(employeeId: CurrentUser.instance.employeeId));
+    await bloc.stream.firstWhere(
+      (s) => s is RoutesLoaded || s is RoutesError,
+    );
+    await _loadLocation();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +66,7 @@ class DashboardScreen extends StatelessWidget {
               'Good morning,',
               style: AppTextStyles.caption.copyWith(fontSize: 12),
             ),
-            const Text('Ahmed Raza', style: AppTextStyles.title),
+            Text(CurrentUser.instance.fullName, style: AppTextStyles.title),
           ],
         ),
         actions: [
@@ -58,9 +99,9 @@ class DashboardScreen extends StatelessWidget {
             child: CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primaryLight,
-              child: const Text(
-                'AR',
-                style: TextStyle(
+              child: Text(
+                CurrentUser.instance.initials,
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -74,38 +115,64 @@ class DashboardScreen extends StatelessWidget {
           child: Container(height: 1, color: AppColors.border),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildKpiGrid(),
-            const SizedBox(height: 16),
-            _buildTodayRoute(context),
-            const SizedBox(height: 16),
-            const Text('QUICK ACTIONS', style: AppTextStyles.sectionHeader),
-            const SizedBox(height: 8),
-            _buildQuickActions(context),
-            const SizedBox(height: 16),
-            const Text('RECENT ALERTS', style: AppTextStyles.sectionHeader),
-            const SizedBox(height: 8),
-            _buildAlerts(),
-          ],
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BlocBuilder<RoutesBloc, RoutesState>(
+                builder: (context, state) {
+                  if (state is RoutesLoaded) {
+                    return _buildKpiGrid(state.stops);
+                  }
+                  return _buildKpiPlaceholder();
+                },
+              ),
+              const SizedBox(height: 16),
+              BlocBuilder<RoutesBloc, RoutesState>(
+                builder: (context, state) {
+                  return _buildTodayRoute(context, state);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildKpiGrid() {
+  Widget _buildKpiPlaceholder() {
     return Row(
       children: [
-        Expanded(
-          child: AppKpiCard(value: '12', label: 'Total Tasks'),
-        ),
+        Expanded(child: AppKpiCard(value: '—', label: '…')),
+        const SizedBox(width: 8),
+        Expanded(child: AppKpiCard(value: '—', label: '…')),
+        const SizedBox(width: 8),
+        Expanded(child: AppKpiCard(value: '—', label: '…')),
+        const SizedBox(width: 8),
+        Expanded(child: AppKpiCard(value: '—', label: '…')),
+      ],
+    );
+  }
+
+  Widget _buildKpiGrid(List<RouteStopModel> stops) {
+    final total = stops.length;
+    final completed =
+        stops.where((s) => s.status == StopStatus.completed).length;
+    final inProcess = stops.where((s) => s.isInProgress).length;
+    final pending = stops.where((s) => s.isNotStarted).length;
+
+    return Row(
+      children: [
+        Expanded(child: AppKpiCard(value: '$total', label: 'Total Tasks')),
         const SizedBox(width: 8),
         Expanded(
           child: AppKpiCard(
-            value: '7',
+            value: '$completed',
             label: 'Completed',
             valueColor: AppColors.successText,
           ),
@@ -113,7 +180,7 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: AppKpiCard(
-            value: '2',
+            value: '$inProcess',
             label: 'In-Process',
             valueColor: AppColors.infoText,
           ),
@@ -121,7 +188,7 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: AppKpiCard(
-            value: '3',
+            value: '$pending',
             label: 'Pending',
             valueColor: AppColors.warningText,
           ),
@@ -130,7 +197,110 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTodayRoute(BuildContext context) {
+  Widget _buildTodayRoute(BuildContext context, RoutesState state) {
+    if (state is RoutesLoading || state is RoutesInitial) {
+      return AppCard(
+        child: SizedBox(
+          height: 120,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Loading today\'s tasks…',
+                  style: AppTextStyles.caption.copyWith(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (state is RoutesError) {
+      return AppCard(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Today\'s Route',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textHigh,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                state.message,
+                style: const TextStyle(fontSize: 13, color: AppColors.textMedium),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () {
+                  context.read<RoutesBloc>().add(
+                        LoadRoutes(
+                          employeeId: CurrentUser.instance.employeeId,
+                        ),
+                      );
+                },
+                icon: const Icon(Icons.refresh, size: 18, color: AppColors.primary),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (state is! RoutesLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    final stops = state.stops;
+    if (stops.isEmpty) {
+      return AppCard(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const Icon(Icons.task_alt, size: 40, color: AppColors.textLow),
+              const SizedBox(height: 12),
+              const Text(
+                'No tasks for today',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textHigh,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'When tasks are assigned they will appear here.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final badgeText =
+        stops.length == 1 ? stops.first.id : '${stops.length} stops';
+    final progress = state.progress.clamp(0.0, 1.0);
+
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,22 +316,26 @@ class DashboardScreen extends StatelessWidget {
                   color: AppColors.textHigh,
                 ),
               ),
-              const AppBadge(text: 'MAT-DT-2026-00001', type: BadgeType.primary),
+              AppBadge(text: badgeText, type: BadgeType.primary),
             ],
           ),
           const SizedBox(height: 12),
-          _routeStop('Al-Fatah Sports Hub', 'Gulberg III · Done 8:45 AM', true),
-          _routeStop('Metro Sports Center', 'DHA Phase 5 · 2.1 km away', false, isActive: true),
-          _routeStop('National Sports Depot', 'Johar Town · 5.4 km away', false),
-          _routeStop('Champion Gear Outlet', 'Model Town · 8.2 km away', false, isLast: true),
+          ...List.generate(stops.length, (index) {
+            final stop = stops[index];
+            final isLast = index == stops.length - 1;
+            return _routeStopRow(
+              stop,
+              isLast: isLast,
+            );
+          }),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Route Progress', style: AppTextStyles.caption),
-              const Text(
-                '1 of 4 stops',
-                style: TextStyle(
+              Text(
+                '${state.completedCount} of ${stops.length} stops',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
@@ -170,7 +344,7 @@ class DashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          const AppProgressBar(progress: 0.25),
+          AppProgressBar(progress: progress),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -205,13 +379,37 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _routeStop(
-    String name,
-    String detail,
-    bool isDone, {
-    bool isActive = false,
-    bool isLast = false,
+  String _detailLine(RouteStopModel stop) {
+    if (stop.isFullyCompleted) {
+      return 'Done';
+    }
+    if (!_hasTaskCoords(stop)) {
+      return 'Location not available for distance';
+    }
+    if (_locLoading) {
+      return 'Calculating distance…';
+    }
+    if (_userPos == null) {
+      return 'Enable location to see distance';
+    }
+    final km = DistanceUtils.kmBetween(
+      _userPos!,
+      LatLng(stop.latitude, stop.longitude),
+    );
+    return DistanceUtils.formatDistanceKm(km);
+  }
+
+  bool _hasTaskCoords(RouteStopModel stop) {
+    return stop.latitude != 0 || stop.longitude != 0;
+  }
+
+  Widget _routeStopRow(
+    RouteStopModel stop, {
+    required bool isLast,
   }) {
+    final isDone = stop.status == StopStatus.completed;
+    final isActive = stop.status == StopStatus.active;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -249,130 +447,32 @@ class DashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  stop.name,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textHigh,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  detail,
+                  stop.address,
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textMedium,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  _detailLine(stop),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDone ? AppColors.successText : AppColors.primary,
+                  ),
+                ),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _quickAction(
-            Icons.map_outlined,
-            'View Route',
-            () => context.read<NavigationCubit>().goToRoutes(),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _quickAction(Icons.location_on_outlined, 'New Visit', () {}),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _quickAction(Icons.description_outlined, 'Reports', () {}),
-        ),
-      ],
-    );
-  }
-
-  Widget _quickAction(IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-          boxShadow: AppColors.shadow,
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 24, color: AppColors.primary),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textMedium,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAlerts() {
-    return AppCard(
-      child: Column(
-        children: [
-          _alertItem(
-            AppColors.warningText,
-            'Stock Request SR-2026-0401-00023 approved',
-            '2 hours ago',
-          ),
-          const Divider(color: AppColors.border, height: 16),
-          _alertItem(
-            AppColors.errorText,
-            'Inventory discrepancy detected at Stop 1',
-            '3 hours ago',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _alertItem(Color dotColor, String text, String time) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(top: 4),
-          decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textHigh,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                time,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMedium,
-                ),
-              ),
-            ],
           ),
         ),
       ],
